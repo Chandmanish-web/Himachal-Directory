@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: himachal-directory
+    runtime: python
+    plan: free
+    buildCommand: python -m compileall -q app.py config.py manage.py
+    startCommand: python app.py
+    healthCheckPath: /api/meta
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: SECURE_COOKIES
+        value: "1"
+      - key: TRUST_PROXY
+        value: "1"

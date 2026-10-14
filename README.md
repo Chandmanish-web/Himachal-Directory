@@ -69,12 +69,19 @@ This is a Python process that must stay running, so you need hosting that can ru
 
 Basic hardening is built in: CSRF protection (custom header plus SameSite cookies), HttpOnly session cookies, rate limiting on sign-in, registration and enquiries, input validation, parameterised SQL, output escaping, and a Content-Security-Policy.
 
+### Deploy to Render
+
+The included `render.yaml` configures a free Render web service. To deploy it, push this repository to GitHub, open the [Render Dashboard](https://dashboard.render.com), select **New > Blueprint**, connect this repository, and deploy the `Main` branch. Render will build and start the app using the Blueprint settings.
+
+**Free Render services have ephemeral storage:** uploaded data and the SQLite database (including user accounts, new listings, and enquiries) are lost on restarts, redeploys, and spin-downs. The bundled industrial listings are re-created automatically at startup, but other database changes are not. Use a persistent database and paid persistent storage for a site that must retain user data.
+
 ## Project layout
 
 ```
 app.py          server, API and database
 manage.py       createadmin and demo commands
 config.py       categories, cities and settings
+render.yaml     Render free web service configuration
 static/
   index.html    page shell
   css/style.css styles
