@@ -65,10 +65,18 @@ CREATE TABLE IF NOT EXISTS enquiries (
     message TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS seed_imports (
+    source TEXT NOT NULL,
+    digest TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    PRIMARY KEY (source, digest)
+);
 """
 
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$")
 PHONE_RE = re.compile(r"^[+0-9][0-9 \-()]{6,18}$")
+SEED_LISTINGS_PATH = os.path.join(config.BASE_DIR, "data", "industrial-listings.json")
+SEED_OWNER_EMAIL = "industrial-data-import@himachaldirectory.invalid"
 
 
 # --------------------------------------------------------------------------
@@ -99,9 +107,71 @@ def init_db():
     try:
         db.execute("PRAGMA journal_mode = WAL")
         db.executescript(SCHEMA)
+        seed_bundled_listings(db)
         db.commit()
     finally:
         db.close()
+
+
+def seed_bundled_listings(db):
+    with open(SEED_LISTINGS_PATH, "rb") as f:
+        source = f.read()
+    digest = hashlib.sha256(source).hexdigest()
+    db.execute("BEGIN IMMEDIATE")
+    if db.execute(
+        "SELECT 1 FROM seed_imports WHERE source = ? AND digest = ?",
+        (SEED_LISTINGS_PATH, digest),
+    ).fetchone():
+        return
+
+    listings = json.loads(source)
+    if not isinstance(listings, list):
+        raise ValueError(f"Bundled listings in {SEED_LISTINGS_PATH} must be a JSON array.")
+
+    owner = db.execute("SELECT id FROM users WHERE email = ?", (SEED_OWNER_EMAIL,)).fetchone()
+    if owner:
+        owner_id = owner["id"]
+    else:
+        owner_id = db.execute(
+            "INSERT INTO users (name, email, pw_hash, is_admin, created_at) VALUES (?, ?, ?, 0, ?)",
+            ("Industrial Visit Data Import", SEED_OWNER_EMAIL,
+             hash_password(secrets.token_urlsafe(32)), now_iso()),
+        ).lastrowid
+
+    imported = 0
+    for index, listing in enumerate(listings, start=1):
+        if not isinstance(listing, dict):
+            raise ValueError(f"Bundled listing {index} in {SEED_LISTINGS_PATH} must be an object.")
+        try:
+            data = clean_business(listing)
+        except HttpError as exc:
+            raise ValueError(f"Invalid bundled listing {index}: {exc.message}") from exc
+
+        exists = db.execute(
+            "SELECT id FROM businesses WHERE lower(name) = lower(?) AND address = ?",
+            (data["name"], data["address"]),
+        ).fetchone()
+        if exists:
+            continue
+
+        timestamp = now_iso()
+        cursor = db.execute(
+            "INSERT INTO businesses (owner_id, name, category, city, description, address, phone, email, website, "
+            "status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
+            (owner_id, data["name"], data["category"], data["city"], data["description"], data["address"],
+             data["phone"], data["email"], data["website"], timestamp, timestamp),
+        )
+        db.execute(
+            "UPDATE businesses SET slug = ? WHERE id = ?",
+            (f"{slugify(data['name'])}-{cursor.lastrowid}", cursor.lastrowid),
+        )
+        imported += 1
+
+    db.execute(
+        "INSERT INTO seed_imports (source, digest, imported_at) VALUES (?, ?, ?)",
+        (SEED_LISTINGS_PATH, digest, now_iso()),
+    )
+    print(f"Loaded {imported} bundled industrial listings.")
 
 
 def hash_password(password, salt=None, iterations=200_000):

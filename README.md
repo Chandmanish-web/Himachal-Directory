@@ -14,6 +14,8 @@ Open http://127.0.0.1:8000
 
 ## First-time setup
 
+The 307 complete, contactable industrial listings are added to a database automatically when the app starts; incomplete spreadsheet rows were omitted. The source data is in `data/industrial-listings.json`, and each dataset version is imported only once.
+
 1. **Create your admin account** (needed to approve listings):
    ```bash
    python manage.py createadmin you@example.com
@@ -79,4 +81,5 @@ static/
   js/app.js     frontend app and router
   favicon.svg
 data/           SQLite database is created here
+  industrial-listings.json  bundled industrial business listings
 ```
