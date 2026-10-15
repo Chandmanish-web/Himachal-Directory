@@ -11,6 +11,7 @@ import app
 
 
 def create_admin(email):
+    """Create an admin account, or promote an existing account to admin."""
     email = email.strip().lower()
     if not app.EMAIL_RE.match(email):
         sys.exit("That does not look like a valid email address.")
@@ -20,22 +21,26 @@ def create_admin(email):
     if password != getpass.getpass("Repeat password: "):
         sys.exit("Passwords did not match.")
     app.init_db()
-    db = app.connect()
+    database = app.connect()
     try:
-        row = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-        if row:
-            db.execute("UPDATE users SET is_admin = 1, pw_hash = ? WHERE id = ?",
-                       (app.hash_password(password), row["id"]))
+        existing_user = database.execute(
+            "SELECT id FROM users WHERE email = ?", (email,)
+        ).fetchone()
+        if existing_user:
+            database.execute(
+                "UPDATE users SET is_admin = 1, pw_hash = ? WHERE id = ?",
+                (app.hash_password(password), existing_user["id"]),
+            )
             print(f"Updated existing user {email} and made them an admin.")
         else:
-            db.execute(
+            database.execute(
                 "INSERT INTO users (name, email, pw_hash, is_admin, created_at) VALUES (?, ?, ?, 1, ?)",
                 ("Administrator", email, app.hash_password(password), app.now_iso()),
             )
             print(f"Created admin {email}.")
-        db.commit()
+        database.commit()
     finally:
-        db.close()
+        database.close()
 
 
 SAMPLES = [
@@ -55,33 +60,41 @@ SAMPLES = [
 
 
 def demo():
+    """Add the clearly labelled sample listings used for testing the site."""
     app.init_db()
-    db = app.connect()
+    database = app.connect()
     try:
-        row = db.execute("SELECT id FROM users WHERE email = 'demo-owner@example.com'").fetchone()
-        if row:
-            owner_id = row["id"]
+        demo_owner = database.execute(
+            "SELECT id FROM users WHERE email = 'demo-owner@example.com'"
+        ).fetchone()
+        if demo_owner:
+            owner_id = demo_owner["id"]
         else:
-            owner_id = db.execute(
+            owner_id = database.execute(
                 "INSERT INTO users (name, email, pw_hash, is_admin, created_at) VALUES (?, ?, ?, 0, ?)",
                 ("Demo Owner", "demo-owner@example.com", app.hash_password(app.secrets.token_urlsafe(24)), app.now_iso()),
             ).lastrowid
         added = 0
-        for name, cat, city, desc, phone in SAMPLES:
-            if db.execute("SELECT 1 FROM businesses WHERE name = ?", (name,)).fetchone():
+        for name, category, city, description, phone in SAMPLES:
+            if database.execute(
+                "SELECT 1 FROM businesses WHERE name = ?", (name,)
+            ).fetchone():
                 continue
-            ts = app.now_iso()
-            bid = db.execute(
+            created_at = app.now_iso()
+            listing_id = database.execute(
                 "INSERT INTO businesses (owner_id, name, category, city, description, phone, status, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
-                (owner_id, name, cat, city, desc, phone, ts, ts),
+                (owner_id, name, category, city, description, phone, created_at, created_at),
             ).lastrowid
-            db.execute("UPDATE businesses SET slug = ? WHERE id = ?", (f"{app.slugify(name)}-{bid}", bid))
+            database.execute(
+                "UPDATE businesses SET slug = ? WHERE id = ?",
+                (f"{app.slugify(name)}-{listing_id}", listing_id),
+            )
             added += 1
-        db.commit()
+        database.commit()
         print(f"Added {added} sample listings (all names start with 'Sample - ').")
     finally:
-        db.close()
+        database.close()
 
 
 if __name__ == "__main__":

@@ -42,6 +42,25 @@ The 307 complete, contactable industrial listings are added to a database automa
 - When an owner edits a listing it goes back to **pending** for another review.
 - Pending and rejected listings are visible only to their owner and admins.
 
+## Understanding the code
+
+The project uses straightforward Python, JavaScript, HTML and CSS—there is no frontend framework or build step.
+
+- `app.py` starts the web server. It also creates database tables, checks form data, and contains one handler for each API action.
+- `config.py` holds settings shared by the server, including the database location and the lists of categories and cities.
+- `manage.py` contains the optional commands for creating an administrator and adding sample listings.
+- `static/index.html` is the page shell. `static/js/app.js` builds each page, sends requests to the API and handles navigation.
+- `static/css/style.css` contains the visual styles. `data/industrial-listings.json` contains the starter business records.
+
+### How a page request works
+
+1. The browser opens a page and loads `static/index.html`.
+2. `static/js/app.js` checks the URL, asks `app.py` for the needed data, then displays the matching page.
+3. The server validates any submitted information and reads or writes it in SQLite.
+4. The server returns JSON, and the browser updates the page.
+
+When changing code, keep API field names and URL paths in sync between `app.py` and `static/js/app.js`. Changes to database table columns also need to match the SQL queries that read and write them. The readability improvements in this version only clarify code; they do not change the application.
+
 ## Customising
 
 - **Categories and cities**: edit the lists in `config.py`. Nothing else needs to change.
