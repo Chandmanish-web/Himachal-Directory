@@ -22,6 +22,7 @@ MAX_LISTINGS_PER_USER = 10  # Maximum number of listings one account can create.
 # These lists are used by both the search forms and server-side validation.
 CATEGORIES = [
     "Manufacturers & factories",
+    "Pharmaceuticals",
     "Wholesalers & distributors",
     "Industrial machinery",
     "Retail & shopping",

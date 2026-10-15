@@ -14,7 +14,21 @@ Open http://127.0.0.1:8000
 
 ## First-time setup
 
-The 307 complete, contactable industrial listings are added to a database automatically when the app starts; incomplete spreadsheet rows were omitted. The source data is in `data/industrial-listings.json`, and each dataset version is imported only once.
+All 345 companies from the supplied industrial-visit workbook are added to the database automatically when the app starts, including listings without contact details. A changed data file updates the imported companies by name, adds new companies, and removes obsolete imported records without changing user-submitted listings. The source data is in `data/industrial-listings.json`; missing or unclear information is listed in `data/industrial-listings-follow-up.csv`.
+
+The workbook has no category or city columns. Existing category and city details are kept for matching companies; new companies are assigned to **Manufacturers & factories** unless their name or products clearly indicate **Pharmaceuticals**. The follow-up report marks these inferred categories and other missing listing details for confirmation. Pharmaceutical listings can be found using the category filter.
+
+The Excel workbook is only needed when regenerating these files; the running app uses the generated JSON. With the workbook in the project folder, regenerate the listing data and follow-up report with:
+
+```bash
+python tools/update_industrial_listings.py
+```
+
+Pass a workbook path to use a different file:
+
+```bash
+python tools/update_industrial_listings.py path\to\updated-workbook.xlsx
+```
 
 1. **Create your admin account** (needed to approve listings):
    ```bash
@@ -30,7 +44,7 @@ The 307 complete, contactable industrial listings are added to a database automa
 
 - **Home**: hero, search by keyword / category / city, popular searches, categories, cities, everyday needs, ad-space placeholder, newest listings, trust section, call to action.
 - **Explore** (`/explore`): filter by keyword, category and city, with pagination. Listing cards show a tap-to-call phone number or clearly say when one is not provided. Filters live in the URL, so results are shareable.
-- **Business page** (`/business/<slug>`): details with phone, email and website links.
+- **Business page** (`/business/<slug>`): details with up to three phone numbers, two email addresses and a website link.
 - **Accounts** (`/login`): register and sign in. Passwords are hashed with PBKDF2.
 - **Dashboard** (`/dashboard`): owners add, edit and delete their own listings and see each one's status (pending, live, needs changes, with the reviewer's reason). A phone number is required for new and updated listings.
 - **Admin review** (`/admin`): approve or reject submissions, and read advertising enquiries.
@@ -47,10 +61,11 @@ The 307 complete, contactable industrial listings are added to a database automa
 The project uses straightforward Python, JavaScript, HTML and CSS—there is no frontend framework or build step.
 
 - `app.py` starts the web server. It also creates database tables, checks form data, and contains one handler for each API action.
-- `config.py` holds settings shared by the server, including the database location and the lists of categories and cities.
+- `config.py` holds settings shared by the server, including the database location and the lists of categories (including Pharmaceuticals) and cities.
 - `manage.py` contains the optional commands for creating an administrator and adding sample listings.
 - `static/index.html` is the page shell. `static/js/app.js` builds each page, sends requests to the API and handles navigation.
-- `static/css/style.css` contains the visual styles. `data/industrial-listings.json` contains the starter business records.
+- `static/css/style.css` contains the visual styles. `data/industrial-listings.json` contains the starter business records, and `data/industrial-listings-follow-up.csv` lists missing or uncertain details to verify.
+- `tools/update_industrial_listings.py` reads the supplied Excel workbook without extra packages and regenerates both data files.
 
 ### How a page request works
 
@@ -108,4 +123,7 @@ static/
   favicon.svg
 data/           SQLite database is created here
   industrial-listings.json  bundled industrial business listings
+  industrial-listings-follow-up.csv  missing details to check
+tools/
+  update_industrial_listings.py  workbook-to-listings import
 ```

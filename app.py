@@ -55,8 +55,12 @@ CREATE TABLE IF NOT EXISTS businesses (
     description TEXT NOT NULL,
     address TEXT NOT NULL DEFAULT '',
     phone TEXT NOT NULL DEFAULT '',
+    phone2 TEXT NOT NULL DEFAULT '',
+    phone3 TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL DEFAULT '',
+    email2 TEXT NOT NULL DEFAULT '',
     website TEXT NOT NULL DEFAULT '',
+    contact_notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending',
     reject_reason TEXT,
     created_at TEXT NOT NULL,
@@ -118,10 +122,27 @@ def init_db():
     try:
         db.execute("PRAGMA journal_mode = WAL")
         db.executescript(SCHEMA)
+        add_business_contact_columns(db)
         seed_bundled_listings(db)
         db.commit()
     finally:
         db.close()
+
+
+def add_business_contact_columns(db):
+    """Add spreadsheet contact fields to databases created by older app versions."""
+    existing_columns = {
+        row["name"] for row in db.execute("PRAGMA table_info(businesses)")
+    }
+    new_columns = {
+        "phone2": "TEXT NOT NULL DEFAULT ''",
+        "phone3": "TEXT NOT NULL DEFAULT ''",
+        "email2": "TEXT NOT NULL DEFAULT ''",
+        "contact_notes": "TEXT NOT NULL DEFAULT ''",
+    }
+    for column, definition in new_columns.items():
+        if column not in existing_columns:
+            db.execute(f"ALTER TABLE businesses ADD COLUMN {column} {definition}")
 
 
 def seed_bundled_listings(db):
@@ -140,6 +161,23 @@ def seed_bundled_listings(db):
     if not isinstance(listings, list):
         raise ValueError(f"Bundled listings in {SEED_LISTINGS_PATH} must be a JSON array.")
 
+    prepared_listings = []
+    names_in_source = set()
+    for index, listing in enumerate(listings, start=1):
+        if not isinstance(listing, dict):
+            raise ValueError(f"Bundled listing {index} in {SEED_LISTINGS_PATH} must be an object.")
+        try:
+            data = clean_business(
+                listing, require_phone=False, allow_incomplete=True
+            )
+        except HttpError as exc:
+            raise ValueError(f"Invalid bundled listing {index}: {exc.message}") from exc
+        normalized_name = " ".join(data["name"].casefold().split())
+        if normalized_name in names_in_source:
+            raise ValueError(f"Duplicate business name in bundled listing {index}: {data['name']}.")
+        names_in_source.add(normalized_name)
+        prepared_listings.append((normalized_name, data))
+
     owner = db.execute("SELECT id FROM users WHERE email = ?", (SEED_OWNER_EMAIL,)).fetchone()
     if owner:
         owner_id = owner["id"]
@@ -150,40 +188,60 @@ def seed_bundled_listings(db):
              hash_password(secrets.token_urlsafe(32)), now_iso()),
         ).lastrowid
 
-    imported = 0
-    for index, listing in enumerate(listings, start=1):
-        if not isinstance(listing, dict):
-            raise ValueError(f"Bundled listing {index} in {SEED_LISTINGS_PATH} must be an object.")
-        try:
-            data = clean_business(listing, require_phone=False)
-        except HttpError as exc:
-            raise ValueError(f"Invalid bundled listing {index}: {exc.message}") from exc
-
-        exists = db.execute(
-            "SELECT id FROM businesses WHERE lower(name) = lower(?) AND address = ?",
-            (data["name"], data["address"]),
-        ).fetchone()
-        if exists:
+    existing_listings = db.execute(
+        "SELECT id, name FROM businesses WHERE owner_id = ?", (owner_id,)
+    ).fetchall()
+    existing_by_name = {
+        " ".join(row["name"].casefold().split()): row["id"]
+        for row in existing_listings
+    }
+    retained_ids = set()
+    added = 0
+    updated = 0
+    timestamp = now_iso()
+    for normalized_name, data in prepared_listings:
+        existing_id = existing_by_name.get(normalized_name)
+        if existing_id is not None:
+            db.execute(
+                "UPDATE businesses SET name=?, category=?, city=?, description=?, address=?, phone=?, phone2=?, "
+                "phone3=?, email=?, email2=?, website=?, contact_notes=?, updated_at=? WHERE id=?",
+                (data["name"], data["category"], data["city"], data["description"], data["address"],
+                 data["phone"], data["phone2"], data["phone3"], data["email"], data["email2"],
+                 data["website"], data["contact_notes"], timestamp, existing_id),
+            )
+            retained_ids.add(existing_id)
+            updated += 1
             continue
-
         timestamp = now_iso()
         cursor = db.execute(
-            "INSERT INTO businesses (owner_id, name, category, city, description, address, phone, email, website, "
-            "status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
+            "INSERT INTO businesses (owner_id, name, category, city, description, address, phone, phone2, phone3, "
+            "email, email2, website, contact_notes, status, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
             (owner_id, data["name"], data["category"], data["city"], data["description"], data["address"],
-             data["phone"], data["email"], data["website"], timestamp, timestamp),
+             data["phone"], data["phone2"], data["phone3"], data["email"], data["email2"], data["website"],
+             data["contact_notes"], timestamp, timestamp),
         )
+        retained_ids.add(cursor.lastrowid)
         db.execute(
             "UPDATE businesses SET slug = ? WHERE id = ?",
             (f"{slugify(data['name'])}-{cursor.lastrowid}", cursor.lastrowid),
         )
-        imported += 1
+        added += 1
+
+    stale_ids = [
+        row["id"] for row in existing_listings if row["id"] not in retained_ids
+    ]
+    if stale_ids:
+        db.executemany("DELETE FROM businesses WHERE id = ?", ((business_id,) for business_id in stale_ids))
 
     db.execute(
         "INSERT INTO seed_imports (source, digest, imported_at) VALUES (?, ?, ?)",
         (SEED_LISTINGS_PATH, digest, now_iso()),
     )
-    print(f"Loaded {imported} bundled industrial listings.")
+    print(
+        f"Synced bundled listings: {added} added, {updated} updated, "
+        f"{len(stale_ids)} removed."
+    )
 
 
 def hash_password(password, salt=None, iterations=200_000):
@@ -253,8 +311,12 @@ def business_public(business_row, include_status=False, include_owner=False):
         "description": business_row["description"],
         "address": business_row["address"],
         "phone": business_row["phone"] or None,
+        "phone2": business_row["phone2"] or None,
+        "phone3": business_row["phone3"] or None,
         "email": business_row["email"],
+        "email2": business_row["email2"],
         "website": business_row["website"],
+        "contact_notes": business_row["contact_notes"],
         "created_at": business_row["created_at"],
     }
     if include_status:
@@ -293,34 +355,58 @@ def text_field(data, key, label, minimum, maximum, errors, required=True):
     return value
 
 
-def clean_business(data, require_phone=True):
+def clean_business(data, require_phone=True, allow_incomplete=False):
     """Validate and tidy a listing before it is saved or imported."""
     errors = {}
     name = text_field(data, "name", "Business name", 2, 100, errors)
-    description = text_field(data, "description", "Description", 20, 1200, errors)
+    description = text_field(
+        data, "description", "Description", 0 if allow_incomplete else 20, 1200, errors,
+        required=not allow_incomplete,
+    )
     address = text_field(data, "address", "Address", 0, 200, errors, required=False)
     category = data.get("category", "")
     city = data.get("city", "")
-    if category not in config.CATEGORIES:
+    if category and category not in config.CATEGORIES:
         errors["category"] = "Choose a category from the list."
-    if city not in config.CITIES:
+    elif not category and not allow_incomplete:
+        errors["category"] = "Choose a category from the list."
+    if city and city not in config.CITIES:
+        errors["city"] = "Choose a city from the list."
+    elif not city and not allow_incomplete:
         errors["city"] = "Choose a city from the list."
     phone = text_field(data, "phone", "Phone number", 1 if require_phone else 0, 20, errors, required=require_phone)
     if phone and not PHONE_RE.match(phone):
         errors["phone"] = "Enter a valid phone number, for example +91 98765 43210."
+    phone2 = text_field(data, "phone2", "Additional phone number", 0, 20, errors, required=False)
+    if phone2 and not PHONE_RE.match(phone2):
+        errors["phone2"] = "Enter a valid phone number, for example +91 98765 43210."
+    phone3 = text_field(data, "phone3", "Additional phone number", 0, 20, errors, required=False)
+    if phone3 and not PHONE_RE.match(phone3):
+        errors["phone3"] = "Enter a valid phone number, for example +91 98765 43210."
     email = text_field(data, "email", "Email", 0, 254, errors, required=False)
     if email and not EMAIL_RE.match(email):
         errors["email"] = "Enter a valid email address."
+    email2 = text_field(data, "email2", "Additional email", 0, 254, errors, required=False)
+    if email2 and not EMAIL_RE.match(email2):
+        errors["email2"] = "Enter a valid email address."
     website = text_field(data, "website", "Website", 0, 200, errors, required=False)
     if website and not re.match(r"^https?://[^\s]+\.[^\s]+$", website):
         errors["website"] = "Website must start with http:// or https://"
-    if not require_phone and not phone and not email and not website and "phone" not in errors:
+    contact_notes = text_field(
+        data, "contact_notes", "Other contact details", 0, 500, errors, required=False
+    )
+    if (
+        not require_phone and not allow_incomplete and not phone and not phone2 and not phone3
+        and not email and not email2 and not website and "phone" not in errors
+    ):
         errors["phone"] = "Add at least one way for customers to reach this business."
     if errors:
         raise HttpError(400, "Please fix the highlighted fields.", errors)
     return {
         "name": name, "category": category, "city": city, "description": description,
-        "address": address, "phone": phone, "email": email.lower(), "website": website,
+        "address": address, "phone": phone, "phone2": phone2, "phone3": phone3,
+        "email": email.lower(), "email2": email2.lower(), "website": website,
+        "contact_notes": contact_notes,
     }
 
 
@@ -522,11 +608,13 @@ def api_my_create(ctx):
     listing_data = clean_business(ctx.body)
     created_at = now_iso()
     insert_result = ctx.db.execute(
-        "INSERT INTO businesses (owner_id, name, category, city, description, address, phone, email, website, "
-        "status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
+        "INSERT INTO businesses (owner_id, name, category, city, description, address, phone, phone2, phone3, "
+        "email, email2, website, contact_notes, status, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
         (ctx.user["id"], listing_data["name"], listing_data["category"], listing_data["city"],
-         listing_data["description"], listing_data["address"], listing_data["phone"],
-         listing_data["email"], listing_data["website"], created_at, created_at),
+         listing_data["description"], listing_data["address"], listing_data["phone"], listing_data["phone2"],
+         listing_data["phone3"], listing_data["email"], listing_data["email2"], listing_data["website"],
+         listing_data["contact_notes"], created_at, created_at),
     )
     listing_id = insert_result.lastrowid
     ctx.db.execute(
@@ -562,11 +650,12 @@ def api_my_update(ctx):
     )
     status = business_row["status"] if is_admin_editing_someone_elses_listing else "pending"
     ctx.db.execute(
-        "UPDATE businesses SET name=?, category=?, city=?, description=?, address=?, phone=?, email=?, website=?, "
-        "status=?, reject_reason=NULL, updated_at=? WHERE id=?",
+        "UPDATE businesses SET name=?, category=?, city=?, description=?, address=?, phone=?, phone2=?, phone3=?, "
+        "email=?, email2=?, website=?, contact_notes=?, status=?, reject_reason=NULL, updated_at=? WHERE id=?",
         (listing_data["name"], listing_data["category"], listing_data["city"],
-         listing_data["description"], listing_data["address"], listing_data["phone"],
-         listing_data["email"], listing_data["website"], status, now_iso(), business_row["id"]),
+         listing_data["description"], listing_data["address"], listing_data["phone"], listing_data["phone2"],
+         listing_data["phone3"], listing_data["email"], listing_data["email2"], listing_data["website"],
+         listing_data["contact_notes"], status, now_iso(), business_row["id"]),
     )
     updated_business = ctx.db.execute(
         "SELECT * FROM businesses WHERE id = ?", (business_row["id"],)

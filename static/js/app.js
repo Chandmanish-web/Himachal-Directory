@@ -145,14 +145,16 @@
   }
 
   function businessCard(business) {
+    const phoneNumbers = [business.phone, business.phone2, business.phone3].filter(Boolean);
     const phone = business.phone
       ? `<a class="biz-phone" href="tel:${escapeHtml(business.phone.replace(/[^+0-9]/g, ''))}"><span>Phone</span>${escapeHtml(business.phone)}</a>`
       : '<span class="biz-phone biz-phone-missing"><span>Phone</span>Not provided</span>';
+    const otherPhoneCount = phoneNumbers.length - (business.phone ? 1 : 0);
     return `<article class="biz">
-      <div class="tags"><span class="tag">${escapeHtml(business.category)}</span><span class="tag tag-city">${escapeHtml(business.city)}</span></div>
+      <div class="tags"><span class="tag">${escapeHtml(business.category || 'Category not provided')}</span><span class="tag tag-city">${escapeHtml(business.city || 'City not provided')}</span></div>
       <h3><a href="/business/${escapeHtml(business.slug)}">${escapeHtml(business.name)}</a></h3>
-      <p>${escapeHtml(snippet(business.description))}</p>
-      <div class="biz-card-footer">${phone}<a class="biz-details" href="/business/${escapeHtml(business.slug)}">View details <span aria-hidden="true">→</span></a></div>
+      <p>${escapeHtml(snippet(business.description || 'Product details not provided yet.'))}</p>
+      <div class="biz-card-footer">${phone}${otherPhoneCount > 0 ? `<span class="biz-phone-extra">+${otherPhoneCount} more</span>` : ''}<a class="biz-details" href="/business/${escapeHtml(business.slug)}">View details <span aria-hidden="true">→</span></a></div>
     </article>`;
   }
 
@@ -357,20 +359,27 @@
     try {
       const { item: business } = await api('/businesses/' + encodeURIComponent(slug));
       if (token !== renderToken) return;
-      setMeta(business.name, snippet(business.description, 155));
+      setMeta(business.name, snippet(business.description || 'Product details not provided yet.', 155));
       const safeWebsite = /^https?:\/\//.test(business.website) ? business.website : '';
+      const phones = [business.phone, business.phone2, business.phone3].filter(Boolean);
+      const phoneRows = phones.length
+        ? phones.map((phone, index) => `<dt>${index ? `Phone ${index + 1}` : 'Phone'}</dt><dd><a class="btn btn-sm" href="tel:${escapeHtml(phone.replace(/[^+0-9]/g, ''))}">Call ${escapeHtml(phone)}</a></dd>`).join('')
+        : '<dt>Phone</dt><dd><span class="contact-missing">Not provided</span></dd>';
+      const emails = [business.email, business.email2].filter(Boolean);
+      const emailRows = emails.map((email, index) => `<dt>${index ? `Email ${index + 1}` : 'Email'}</dt><dd><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></dd>`).join('');
       $app.innerHTML = `<div class="page"><div class="wrap">
-        <div class="crumb"><a href="/explore">Explore businesses</a> / ${escapeHtml(business.city)}</div>
+        <div class="crumb"><a href="/explore">Explore businesses</a> / ${escapeHtml(business.city || 'Himachal Pradesh')}</div>
         <div class="detail"><div>
-          <div class="tags"><span class="tag">${escapeHtml(business.category)}</span><span class="tag tag-city">${escapeHtml(business.city)}</span>
+          <div class="tags"><span class="tag">${escapeHtml(business.category || 'Category not provided')}</span><span class="tag tag-city">${escapeHtml(business.city || 'City not provided')}</span>
             ${business.status && business.status !== 'approved' ? `<span class="badge badge-${escapeHtml(business.status)}">${business.status === 'pending' ? 'Pending review — only you can see this' : escapeHtml(business.status)}</span>` : ''}</div>
           <h1>${escapeHtml(business.name)}</h1>
-          <p>${escapeHtml(business.description).replace(/\n/g, '<br>')}</p></div>
+          <p>${escapeHtml(business.description || 'Product details not provided yet.').replace(/\n/g, '<br>')}</p></div>
         <aside class="card"><h3>Contact</h3><dl>
           ${business.address ? `<dt>Address</dt><dd>${escapeHtml(business.address)}</dd>` : ''}
-          <dt>Phone</dt><dd>${business.phone ? `<a class="btn btn-sm" href="tel:${escapeHtml(business.phone.replace(/[^+0-9]/g, ''))}">Call ${escapeHtml(business.phone)}</a>` : '<span class="contact-missing">Not provided</span>'}</dd>
-          ${business.email ? `<dt>Email</dt><dd><a href="mailto:${escapeHtml(business.email)}">${escapeHtml(business.email)}</a></dd>` : ''}
+          ${phoneRows}
+          ${emailRows}
           ${safeWebsite ? `<dt>Website</dt><dd><a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(safeWebsite.replace(/^https?:\/\//, ''))}</a></dd>` : ''}
+          ${business.contact_notes ? `<dt>Other contact details</dt><dd>${escapeHtml(business.contact_notes).replace(/\n/g, '<br>')}</dd>` : ''}
           <dt>Listed</dt><dd>${escapeHtml(formatDate(business.created_at))}</dd></dl></aside></div></div></div>`;
     } catch (error) {
       if (token !== renderToken) return;
@@ -491,7 +500,9 @@
         ${field('description', 'Description', listing.description, { type: 'textarea', required: true, maxlength: 1200, hint: 'Tell customers what you offer. 20 to 1,200 characters.' })}
         ${field('address', 'Address', listing.address, { maxlength: 200 })}
         <div class="grid-2">${field('phone', 'Phone number', listing.phone, { type: 'tel', required: true, maxlength: 20, hint: 'Required. Customers can call this number after your listing is approved.' })}${field('email', 'Business email', listing.email, { type: 'email', hint: 'Optional. Shown publicly once approved.' })}</div>
-        ${field('website', 'Website', listing.website, { type: 'url', hint: 'Start with https://' })}
+        <div class="grid-2">${field('phone2', 'Phone number 2', listing.phone2, { type: 'tel', maxlength: 20 })}${field('phone3', 'Phone number 3', listing.phone3, { type: 'tel', maxlength: 20 })}</div>
+        <div class="grid-2">${field('email2', 'Business email 2', listing.email2, { type: 'email' })}${field('website', 'Website', listing.website, { type: 'url', hint: 'Start with https://' })}</div>
+        ${field('contact_notes', 'Other contact details', listing.contact_notes, { type: 'textarea', maxlength: 500, hint: 'Optional. Add contact information that does not fit the fields above.' })}
         <button class="btn btn-apple" type="submit">${listingBeingEdited ? 'Save and resubmit for review' : 'Submit for review'}</button>
         ${listingBeingEdited ? '<button class="btn btn-ghost" type="button" data-cancel style="margin-left:8px">Cancel</button>' : ''}`;
       const cancelButton = form.querySelector('[data-cancel]');
@@ -604,9 +615,9 @@
           }
         });
         adminContent.innerHTML = businessRecords.length ? businessRecords.map((business) => `<div class="row-item"><div>
-            <h3>${escapeHtml(business.name)}</h3><div class="tags"><span class="tag">${escapeHtml(business.category)}</span><span class="tag tag-city">${escapeHtml(business.city)}</span></div>
-            <p>${escapeHtml(business.description)}</p>
-            <p>${[business.phone, business.email, business.website, business.address].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+            <h3>${escapeHtml(business.name)}</h3><div class="tags"><span class="tag">${escapeHtml(business.category || 'Category not provided')}</span><span class="tag tag-city">${escapeHtml(business.city || 'City not provided')}</span></div>
+            <p>${escapeHtml(business.description || 'Product details not provided yet.')}</p>
+            <p>${[business.phone, business.phone2, business.phone3, business.email, business.email2, business.website, business.address, business.contact_notes].filter(Boolean).map(escapeHtml).join(' · ')}</p>
             <p>Owner: ${escapeHtml(business.owner_name)} (${escapeHtml(business.owner_email)})</p>
             ${business.reject_reason ? `<div class="reason-note">Reason: ${escapeHtml(business.reject_reason)}</div>` : ''}</div>
             <div class="row-actions">

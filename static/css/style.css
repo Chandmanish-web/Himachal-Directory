@@ -132,6 +132,7 @@ textarea { min-height: 130px; resize: vertical; }
 .biz-phone span { color: var(--stone); font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; }
 .biz-phone[href]:hover, .biz-details:hover { color: var(--apple); text-decoration: none; }
 .biz-phone-missing { color: var(--stone); font-weight: 400; }
+.biz-phone-extra { color: var(--stone); font-size: .78rem; white-space: nowrap; }
 .biz-details { flex: 0 0 auto; font-size: .85rem; font-weight: 600; }
 .contact-missing { color: var(--stone); }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; }
