@@ -26,29 +26,14 @@ DOMAIN_RE = re.compile(
     re.IGNORECASE,
 )
 PHONE_RE = re.compile(r"^[+0-9][0-9 \-()]{6,18}$")
-PHARMACY_PRODUCT_RE = re.compile(
-    r"\b(pharma(?:ceutical|cutical|cutectial|cucital|cetuctial)?s?|"
-    r"pharmac(?:ia|eutical|utical|utectial|ucital|etuctial)?s?|medicines?|"
-    r"tablets?|capsules?|ointments?|syrups?|drugs?|formulations?|"
-    r"ayurvedic|injections?(?!\s*mould)\b)",
+PHARMA_TERM_RE = re.compile(r"(?:pharma\w*|pharmac\w*)", re.IGNORECASE)
+PHARMA_COMPANY_RE = re.compile(
+    r"\b(?:life\s*sciences?|biotech|biogenetic|formulations?|remedies|medicare|drugs?)\b",
     re.IGNORECASE,
 )
 MEDICINE_PRODUCT_RE = re.compile(
-    r"\b(pharmaceuticals?|pharmacuticals?|pharmacutectials?|pharmacucitals?|"
-    r"pharmacetuctials?|medicines?|tablets?|capsules?|ointments?|"
-    r"syrups?|drugs?|formulations?|injections?(?!\s*mould)\b)",
-    re.IGNORECASE,
-)
-PHARMACY_COMPANY_RE = re.compile(
-    r"\b(pharma(?:ceutical|cutical|cutectial|cucital|cetuctial)?s?|"
-    r"pharmac(?:ia|eutical|utical|utectial|ucital|etuctial)?s?|"
-    r"lifesciences?|life sciences|biotech|biogenetic|formulations?|remedies|"
-    r"medicare|drugs?)\b",
-    re.IGNORECASE,
-)
-ANCILLARY_PRODUCT_RE = re.compile(
-    r"\b(packaging|labels?|foils?|machines?|machinery|moulds?|moulding|"
-    r"spares?|maintenance|bottles?|cartons?)\b",
+    r"\b(?:medicines?|tablets?|capsules?|ointments?|syrups?|drugs?|"
+    r"formulations?|ayurvedic(?:\s+medicines?)?|injections?(?!\s*mould(?:ing)?\b))\b",
     re.IGNORECASE,
 )
 
@@ -150,14 +135,13 @@ def clean_value(value):
 
 
 def is_pharmaceutical(company_name, product):
-    """Use clear medicine/product terms, not packaging or machinery alone."""
-    if MEDICINE_PRODUCT_RE.search(product):
-        return True
-    if ANCILLARY_PRODUCT_RE.search(product):
-        return False
+    """Include medicine makers and suppliers explicitly serving the pharma industry."""
     return bool(
-        PHARMACY_COMPANY_RE.search(company_name)
-        or PHARMACY_PRODUCT_RE.search(product)
+        PHARMA_TERM_RE.search(company_name)
+        or PHARMA_TERM_RE.search(product)
+        or PHARMA_COMPANY_RE.search(company_name)
+        or PHARMA_COMPANY_RE.search(product)
+        or MEDICINE_PRODUCT_RE.search(product)
     )
 
 

@@ -226,7 +226,7 @@
 
   /* ---------- pages ---------- */
   async function pageHome() {
-    setMeta('', 'Discover businesses, manufacturers and local services across Himachal Pradesh. Find your next connection in Shimla, Dharamshala, Solan, Baddi and beyond.');
+    setMeta('', 'Discover businesses, manufacturers, pharmaceutical companies and industry suppliers across Himachal Pradesh. Find your next connection in Shimla, Solan, Baddi and beyond.');
     const { categories, cities } = state.meta;
     $app.innerHTML = `
       <section class="hero">
@@ -245,6 +245,7 @@
         ${searchForm()}
         <div class="popular"><strong>Popular searches:</strong>
           <a href="/explore?category=${encodeURIComponent('Manufacturers & factories')}">Manufacturers</a>
+          <a href="/explore?category=${encodeURIComponent('Pharmaceuticals')}">Pharmaceuticals</a>
           <a href="/explore?category=${encodeURIComponent('Healthcare & medical')}">Healthcare</a>
           <a href="/explore?category=${encodeURIComponent('Restaurants & food')}">Restaurants</a>
           <a href="/explore?category=${encodeURIComponent('Home & repair')}">Home services</a>

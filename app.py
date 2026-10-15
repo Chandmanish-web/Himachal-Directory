@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS seed_imports (
 
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$")
 PHONE_RE = re.compile(r"^[+0-9][0-9 \-()]{6,18}$")
+PHARMACEUTICAL_SEARCH_RE = re.compile(
+    r"\b(?:pharma\w*|pharmac\w*|medicines?|drugs?|tablets?|capsules?|"
+    r"biotech|life\s*sciences?|formulations?|injections?|ointments?|syrups?)\b",
+    re.IGNORECASE,
+)
 SEED_LISTINGS_PATH = os.path.join(config.BASE_DIR, "data", "industrial-listings.json")
 SEED_OWNER_EMAIL = "industrial-data-import@himachaldirectory.invalid"
 
@@ -533,11 +538,17 @@ def api_businesses(ctx):
         query_values.append(city)
     if search_text:
         search_pattern = f"%{like_escape(search_text)}%"
-        conditions.append(
-            "(name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' "
-            "OR category LIKE ? ESCAPE '\\' OR city LIKE ? ESCAPE '\\')"
-        )
+        search_conditions = [
+            "name LIKE ? ESCAPE '\\'",
+            "description LIKE ? ESCAPE '\\'",
+            "category LIKE ? ESCAPE '\\'",
+            "city LIKE ? ESCAPE '\\'",
+        ]
         query_values += [search_pattern] * 4
+        if PHARMACEUTICAL_SEARCH_RE.search(search_text):
+            search_conditions.append("category = ?")
+            query_values.append("Pharmaceuticals")
+        conditions.append(f"({' OR '.join(search_conditions)})")
     where_clause = " AND ".join(conditions)
     total = ctx.db.execute(
         f"SELECT COUNT(*) FROM businesses WHERE {where_clause}", query_values

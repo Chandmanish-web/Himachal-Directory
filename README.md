@@ -16,7 +16,7 @@ Open http://127.0.0.1:8000
 
 All 345 companies from the supplied industrial-visit workbook are added to the database automatically when the app starts, including listings without contact details. A changed data file updates the imported companies by name, adds new companies, and removes obsolete imported records without changing user-submitted listings. The source data is in `data/industrial-listings.json`; missing or unclear information is listed in `data/industrial-listings-follow-up.csv`.
 
-The workbook has no category or city columns. Existing category and city details are kept for matching companies; new companies are assigned to **Manufacturers & factories** unless their name or products clearly indicate **Pharmaceuticals**. The follow-up report marks these inferred categories and other missing listing details for confirmation. Pharmaceutical listings can be found using the category filter.
+The workbook has no category or city columns. Existing category and city details are kept for matching companies; new companies are assigned to **Manufacturers & factories** unless their name or products identify pharmaceuticals or pharma-industry suppliers. The **Pharmaceuticals** category includes medicine manufacturers and related suppliers such as pharma packaging, foil, labels, and equipment. It is available from the home page, category filter, and pharmaceutical keyword searches. The follow-up report marks inferred categories and other missing listing details for confirmation.
 
 The Excel workbook is only needed when regenerating these files; the running app uses the generated JSON. With the workbook in the project folder, regenerate the listing data and follow-up report with:
 
