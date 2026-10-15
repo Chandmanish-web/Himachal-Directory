@@ -30,7 +30,7 @@
   }
 
   function setMeta(title, description) {
-    document.title = title ? `${title} — Himachal Directory` : 'Himachal Directory — Good businesses. Real connections.';
+    document.title = title ? `${title} — Himachal Industrial Directory` : 'Himachal Industrial Directory — Good businesses. Real connections.';
     const d = document.querySelector('meta[name="description"]');
     if (d && description) d.setAttribute('content', description);
   }
@@ -90,11 +90,15 @@
   }
 
   function bizCard(b) {
-    return `<a class="biz" href="/business/${esc(b.slug)}">
+    const phone = b.phone
+      ? `<a class="biz-phone" href="tel:${esc(b.phone.replace(/[^+0-9]/g, ''))}"><span>Phone</span>${esc(b.phone)}</a>`
+      : '<span class="biz-phone biz-phone-missing"><span>Phone</span>Not provided</span>';
+    return `<article class="biz">
       <div class="tags"><span class="tag">${esc(b.category)}</span><span class="tag tag-city">${esc(b.city)}</span></div>
-      <h3>${esc(b.name)}</h3>
+      <h3><a href="/business/${esc(b.slug)}">${esc(b.name)}</a></h3>
       <p>${esc(snippet(b.description))}</p>
-    </a>`;
+      <div class="biz-card-footer">${phone}<a class="biz-details" href="/business/${esc(b.slug)}">View details <span aria-hidden="true">→</span></a></div>
+    </article>`;
   }
 
   function searchForm(values = {}, cls = 'search-row') {
@@ -137,7 +141,7 @@
       ? `<a href="/dashboard">${esc(u.name.split(' ')[0])}</a><a href="#" data-logout>Sign out</a>`
       : `<a href="/login">Account</a>`;
     $header.innerHTML = `<div class="wrap header-row">
-      <a href="/" class="brand"><span class="brand-name">Himachal Directory</span><span class="brand-tag">Local connections. Limitless possibilities.</span></a>
+      <a href="/" class="brand"><span class="brand-name">Himachal Industrial Directory</span><span class="brand-tag">Local connections. Limitless possibilities.</span></a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
       <nav class="nav" id="nav" aria-label="Main">
         <a href="/explore">Explore businesses</a><a href="/#categories">Categories</a><a href="/#cities">Cities</a>
@@ -298,7 +302,7 @@
           <p>${esc(b.description).replace(/\n/g, '<br>')}</p></div>
         <aside class="card"><h3>Contact</h3><dl>
           ${b.address ? `<dt>Address</dt><dd>${esc(b.address)}</dd>` : ''}
-          ${b.phone ? `<dt>Phone</dt><dd><a href="tel:${esc(b.phone.replace(/[^+0-9]/g, ''))}">${esc(b.phone)}</a></dd>` : ''}
+          <dt>Phone</dt><dd>${b.phone ? `<a class="btn btn-sm" href="tel:${esc(b.phone.replace(/[^+0-9]/g, ''))}">Call ${esc(b.phone)}</a>` : '<span class="contact-missing">Not provided</span>'}</dd>
           ${b.email ? `<dt>Email</dt><dd><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></dd>` : ''}
           ${safeSite ? `<dt>Website</dt><dd><a href="${esc(safeSite)}" target="_blank" rel="noopener noreferrer nofollow">${esc(safeSite.replace(/^https?:\/\//, ''))}</a></dd>` : ''}
           <dt>Listed</dt><dd>${esc(fmtDate(b.created_at))}</dd></dl></aside></div></div></div>`;
@@ -420,7 +424,7 @@
           ${field('city', 'City', b.city, { type: 'select', options: state.meta.cities, placeholder: 'Choose a city', required: true })}</div>
         ${field('description', 'Description', b.description, { type: 'textarea', required: true, maxlength: 1200, hint: 'Tell customers what you offer. 20 to 1,200 characters.' })}
         ${field('address', 'Address', b.address, { maxlength: 200 })}
-        <div class="grid-2">${field('phone', 'Phone', b.phone, { type: 'tel', maxlength: 20, hint: 'Shown publicly once approved.' })}${field('email', 'Business email', b.email, { type: 'email', hint: 'Shown publicly once approved.' })}</div>
+        <div class="grid-2">${field('phone', 'Phone number', b.phone, { type: 'tel', required: true, maxlength: 20, hint: 'Required. Customers can call this number after your listing is approved.' })}${field('email', 'Business email', b.email, { type: 'email', hint: 'Optional. Shown publicly once approved.' })}</div>
         ${field('website', 'Website', b.website, { type: 'url', hint: 'Start with https://' })}
         <button class="btn btn-apple" type="submit">${editing ? 'Save and resubmit for review' : 'Submit for review'}</button>
         ${editing ? '<button class="btn btn-ghost" type="button" data-cancel style="margin-left:8px">Cancel</button>' : ''}`;

@@ -1,4 +1,4 @@
-# Himachal Directory
+# Himachal Industrial Directory
 
 A business directory for Himachal Pradesh. Python (standard library only) backend, vanilla JavaScript frontend, SQLite database. **No packages to install.**
 
@@ -29,10 +29,10 @@ The 307 complete, contactable industrial listings are added to a database automa
 ## Features
 
 - **Home**: hero, search by keyword / category / city, popular searches, categories, cities, everyday needs, ad-space placeholder, newest listings, trust section, call to action.
-- **Explore** (`/explore`): filter by keyword, category and city, with pagination. Filters live in the URL, so results are shareable.
+- **Explore** (`/explore`): filter by keyword, category and city, with pagination. Listing cards show a tap-to-call phone number or clearly say when one is not provided. Filters live in the URL, so results are shareable.
 - **Business page** (`/business/<slug>`): details with phone, email and website links.
 - **Accounts** (`/login`): register and sign in. Passwords are hashed with PBKDF2.
-- **Dashboard** (`/dashboard`): owners add, edit and delete their own listings and see each one's status (pending, live, needs changes, with the reviewer's reason).
+- **Dashboard** (`/dashboard`): owners add, edit and delete their own listings and see each one's status (pending, live, needs changes, with the reviewer's reason). A phone number is required for new and updated listings.
 - **Admin review** (`/admin`): approve or reject submissions, and read advertising enquiries.
 - **About** (`/about`) with an advertising enquiry form, and **Privacy & guidelines** (`/privacy`).
 

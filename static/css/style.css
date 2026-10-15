@@ -125,7 +125,15 @@ textarea { min-height: 130px; resize: vertical; }
 .biz { display: flex; flex-direction: column; gap: 10px; padding: 22px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); transition: border-color .15s; }
 .biz:hover { border-color: var(--pine); text-decoration: none; }
 .biz h3 { font-size: 1.35rem; }
+.biz h3 a:hover { color: var(--apple); }
 .biz p { color: var(--stone); font-size: .92rem; margin: 0; }
+.biz-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: auto; }
+.biz-phone { display: inline-flex; flex-direction: column; font-size: .92rem; font-weight: 600; overflow-wrap: anywhere; }
+.biz-phone span { color: var(--stone); font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; }
+.biz-phone[href]:hover, .biz-details:hover { color: var(--apple); text-decoration: none; }
+.biz-phone-missing { color: var(--stone); font-weight: 400; }
+.biz-details { flex: 0 0 auto; font-size: .85rem; font-weight: 600; }
+.contact-missing { color: var(--stone); }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .tag { font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--mist); }
 .tag-city { background: transparent; border: 1px solid var(--line); }
@@ -219,6 +227,8 @@ textarea { min-height: 130px; resize: vertical; }
   .search-row .btn { grid-column: 1 / -1; }
 }
 @media (max-width: 760px) {
+  .header-row { gap: 12px; }
+  .brand-name { font-size: 1.1rem; }
   .nav-toggle { display: block; }
   .nav { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; align-items: stretch; gap: 0; margin: 0; background: var(--snow); border-bottom: 1px solid var(--line); padding: 10px 24px 18px; }
   .nav.open { display: flex; }
@@ -226,6 +236,8 @@ textarea { min-height: 130px; resize: vertical; }
   .nav a.btn { margin-top: 12px; border-bottom: 0; }
 }
 @media (max-width: 560px) {
+  .brand-name { font-size: 1rem; }
+  .brand-tag { font-size: .55rem; }
   .cat-grid, .everyday, .list-grid, .city-grid, .footer-grid, .grid-2, .search-row, .filters .search-row { grid-template-columns: 1fr; }
   .section { padding: 60px 0; }
   .search-card { padding: 16px; }

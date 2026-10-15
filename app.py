@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Himachal Directory - a business directory built on the Python standard library.
+"""Himachal Industrial Directory - a business directory built on the Python standard library.
 
 Run:  python app.py
 No third-party packages required.
@@ -143,7 +143,7 @@ def seed_bundled_listings(db):
         if not isinstance(listing, dict):
             raise ValueError(f"Bundled listing {index} in {SEED_LISTINGS_PATH} must be an object.")
         try:
-            data = clean_business(listing)
+            data = clean_business(listing, require_phone=False)
         except HttpError as exc:
             raise ValueError(f"Invalid bundled listing {index}: {exc.message}") from exc
 
@@ -227,7 +227,7 @@ def business_public(row, include_status=False, include_owner=False):
         "city": row["city"],
         "description": row["description"],
         "address": row["address"],
-        "phone": row["phone"],
+        "phone": row["phone"] or None,
         "email": row["email"],
         "website": row["website"],
         "created_at": row["created_at"],
@@ -265,7 +265,7 @@ def text_field(data, key, label, minimum, maximum, errors, required=True):
     return value
 
 
-def clean_business(data):
+def clean_business(data, require_phone=True):
     errors = {}
     name = text_field(data, "name", "Business name", 2, 100, errors)
     description = text_field(data, "description", "Description", 20, 1200, errors)
@@ -276,7 +276,7 @@ def clean_business(data):
         errors["category"] = "Choose a category from the list."
     if city not in config.CITIES:
         errors["city"] = "Choose a city from the list."
-    phone = text_field(data, "phone", "Phone", 0, 20, errors, required=False)
+    phone = text_field(data, "phone", "Phone number", 1 if require_phone else 0, 20, errors, required=require_phone)
     if phone and not PHONE_RE.match(phone):
         errors["phone"] = "Enter a valid phone number, for example +91 98765 43210."
     email = text_field(data, "email", "Email", 0, 254, errors, required=False)
@@ -285,8 +285,8 @@ def clean_business(data):
     website = text_field(data, "website", "Website", 0, 200, errors, required=False)
     if website and not re.match(r"^https?://[^\s]+\.[^\s]+$", website):
         errors["website"] = "Website must start with http:// or https://"
-    if not phone and not email and not website and "phone" not in errors:
-        errors["phone"] = "Add at least one way for customers to reach you: phone, email or website."
+    if not require_phone and not phone and not email and not website and "phone" not in errors:
+        errors["phone"] = "Add at least one way for customers to reach this business."
     if errors:
         raise HttpError(400, "Please fix the highlighted fields.", errors)
     return {
@@ -727,7 +727,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     init_db()
     server = ThreadingHTTPServer((config.HOST, config.PORT), Handler)
-    print(f"Himachal Directory running at http://{config.HOST}:{config.PORT}  (Ctrl+C to stop)")
+    print(f"Himachal Industrial Directory running at http://{config.HOST}:{config.PORT}  (Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
